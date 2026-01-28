@@ -1,0 +1,61 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="footer">
+    <div class="container footer-container">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <i class="bi bi-heart-pulse"></i>
+                <span>TraumaDeteksi</span>
+            </div>
+            <p class="footer-text">
+                Membantu mendeteksi dini tanda-tanda trauma pada remaja melalui
+                analisis linguistik.
+            </p>
+        </div>
+
+        <div class="footer-bottom">
+            <p>&copy; {currentYear} TraumaDeteksi. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
+
+<style>
+    .footer {
+        background-color: white;
+        border-top: 1px solid var(--color-border);
+        padding: 3rem 0;
+        margin-top: auto;
+    }
+
+    .footer-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 2rem;
+    }
+
+    .footer-brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        margin-bottom: 1rem;
+    }
+
+    .footer-text {
+        color: var(--color-text-muted);
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .footer-bottom {
+        font-size: 0.875rem;
+        color: var(--color-text-light);
+    }
+</style>

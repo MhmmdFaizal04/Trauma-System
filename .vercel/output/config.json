@@ -1,0 +1,79 @@
+{
+	"version": 3,
+	"routes": [
+		{
+			"handle": "filesystem"
+		},
+		{
+			"src": "^/_astro/(.*)$",
+			"headers": {
+				"cache-control": "public, max-age=31536000, immutable"
+			},
+			"continue": true
+		},
+		{
+			"src": "^/_server-islands/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/_image/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/analisis/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/dashboard/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/login/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/analyze/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/analyze-all/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/export/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/login/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/logout/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/admin/responses/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/init-db/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/kuisioner/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/kuisioner/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/terima-kasih/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/$",
+			"dest": "_render"
+		}
+	]
+}

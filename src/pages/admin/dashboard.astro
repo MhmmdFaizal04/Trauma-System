@@ -1,0 +1,562 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { isAuthenticated, verifyToken, getTokenFromRequest } from '../../lib/auth';
+import { sql } from '../../lib/db';
+
+// Check authentication
+if (!isAuthenticated(Astro.request)) {
+  return Astro.redirect('/admin/login');
+}
+
+const token = getTokenFromRequest(Astro.request);
+const user = token ? verifyToken(token) : null;
+
+// Fetch data
+let allRespondents: any[] = [];
+let stats = { total: 0, analyzed: 0, pending: 0 };
+let aggregateStats = {
+  topNegativeWords: [] as {word: string, count: number}[],
+  sentimentOverview: { negative: 0, neutral: 0 },
+  avgSentenceLength: 0,
+  dominantPronoun: 'Seimbang'
+};
+
+try {
+  // 1. Get Respondents
+  const respondents = await sql`
+    SELECT id, session_id, age, gender, created_at 
+    FROM respondents 
+    ORDER BY created_at DESC
+  `;
+  
+  // 2. Get All Analysis Results
+  const analysisData = await sql`SELECT * FROM analysis_results`;
+  
+  // Map analysis status
+  const analyzedMap = new Map();
+  analysisData.forEach((a: any) => analyzedMap.set(a.respondent_id, a));
+  
+  allRespondents = respondents.map((r: any) => ({
+    id: r.id,
+    sessionId: r.session_id,
+    age: r.age,
+    gender: r.gender,
+    createdAt: r.created_at,
+    isAnalyzed: analyzedMap.has(r.id)
+  }));
+  
+  stats.total = allRespondents.length;
+  stats.analyzed = analysisData.length;
+  stats.pending = stats.total - stats.analyzed;
+  
+  // 3. Compute Aggregate Stats (Server-side)
+  if (stats.analyzed > 0) {
+    const wordCounts: {[key: string]: number} = {};
+    let totalSentLen = 0;
+    let firstPersonTotal = 0;
+    
+    analysisData.forEach((data: any) => {
+      // Word Freq
+      const wf = data.word_frequency || {};
+      Object.entries(wf).forEach(([w, c]) => {
+        wordCounts[w] = (wordCounts[w] || 0) + (c as number);
+      });
+      
+      // Sentence
+      const sa = data.sentence_analysis || {};
+      totalSentLen += (sa.avgLength || 0);
+      
+      // Pronoun
+      const pa = data.pronoun_analysis || {};
+      if (pa.firstPerson > pa.thirdPerson) firstPersonTotal++;
+    });
+    
+    // Top Words
+    aggregateStats.topNegativeWords = Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([word, count]) => ({ word, count }));
+      
+    aggregateStats.avgSentenceLength = totalSentLen / stats.analyzed;
+    
+    // Simple sentiment approximation
+    const negativeCount = analysisData.filter((a: any) => (a.trauma_indicators?.length || 0) > 0).length;
+    aggregateStats.sentimentOverview = {
+      negative: negativeCount,
+      neutral: stats.analyzed - negativeCount
+    };
+    
+    aggregateStats.dominantPronoun = firstPersonTotal > (stats.analyzed / 2) ? 'Dominan Orang Pertama' : 'Dominan Orang Ketiga/Seimbang';
+  }
+  
+} catch (error) {
+  console.error('Database error:', error);
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(new Date(date));
+}
+---
+
+<Layout title="Dashboard Admin">
+  <div class="admin-wrapper">
+    <!-- Navbar simple for admin -->
+    <nav class="admin-nav">
+      <div class="nav-brand">
+        <i class="bi bi-shield-lock-fill"></i> Panel Admin
+      </div>
+      <div class="user-menu">
+        <span>Halo, {user?.username || 'Admin'}</span>
+        <button id="logout-btn" class="btn-logout"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </nav>
+    
+    <main class="dashboard-content">
+      <div class="container">
+        <!-- Header Section -->
+        <header class="page-header">
+          <div>
+            <h1>Dashboard Analisis</h1>
+            <p class="subtitle">Overview data {stats.total} responden siswa</p>
+          </div>
+          <div class="header-actions">
+            <!-- Batch Action -->
+            {stats.pending > 0 && (
+              <button id="batch-analyze-btn" class="btn btn-primary pulse-animation">
+                <i class="bi bi-lightning-charge-fill"></i>
+                Analisis {stats.pending} Data Baru
+              </button>
+            )}
+            <a href="/api/admin/export" class="btn btn-secondary" target="_blank">
+              <i class="bi bi-file-earmark-spreadsheet-fill"></i> Export CSV
+            </a>
+            <button id="init-db-btn" class="btn btn-sm btn-outline" title="Reset/Init DB">
+              <i class="bi bi-database"></i>
+            </button>
+          </div>
+        </header>
+        
+        <!-- Stats Row -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon bg-blue"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-data">
+              <h3>{stats.total}</h3>
+              <span>Total Responden</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-green"><i class="bi bi-check-lg"></i></div>
+            <div class="stat-data">
+              <h3>{stats.analyzed}</h3>
+              <span>Sudah Dianalisis</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon bg-orange"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-data">
+              <h3>{stats.pending}</h3>
+              <span>Menunggu</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Aggregate Analysis Section (Only if analyzed data exists) -->
+        {stats.analyzed > 0 && (
+          <section class="aggregate-section">
+            <div class="section-title">
+              <h2><i class="bi bi-bar-chart-fill"></i> Ringkasan Kolektif</h2>
+              <span class="badge badge-info">Hasil dari {stats.analyzed} data</span>
+            </div>
+            
+            <div class="charts-grid">
+              <!-- Top Words Card -->
+              <div class="chart-card">
+                <h3>Top 5 Kata Negatif Terdeteksi</h3>
+                <div class="word-list">
+                  {aggregateStats.topNegativeWords.map((item, idx) => (
+                    <div class="word-item">
+                      <span class="rank">#{idx + 1}</span>
+                      <span class="word">{item.word}</span>
+                      <div class="bar-container">
+                        <div class="bar" style={`width: ${Math.min(100, (item.count / stats.analyzed) * 200)}%`}></div>
+                      </div>
+                      <span class="count">{item.count}</span>
+                    </div>
+                  ))}
+                  {aggregateStats.topNegativeWords.length === 0 && <p class="empty-msg">Belum ada kata negatif signifikan.</p>}
+                </div>
+              </div>
+              
+              <!-- Sentiment Summary Card -->
+              <div class="chart-card">
+                <h3>Deteksi Indikator</h3>
+                <div class="sentiment-box">
+                  <div class="sentiment-item negative">
+                    <span class="number">{aggregateStats.sentimentOverview.negative}</span>
+                    <span class="label">Terindikasi Pola Emosional</span>
+                  </div>
+                  <div class="sentiment-item neutral">
+                    <span class="number">{aggregateStats.sentimentOverview.neutral}</span>
+                    <span class="label">Narasi Netral/Normal</span>
+                  </div>
+                </div>
+                <div class="mini-stat">
+                  <span>Rata-rata Panjang Kalimat: <strong>{aggregateStats.avgSentenceLength.toFixed(1)} kata</strong></span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+        
+        <!-- Data Table -->
+        <section class="table-section">
+          <h2>Data Responden Terbaru</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Tanggal</th>
+                  <th>Gender</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allRespondents.slice(0, 50).map((r) => (
+                  <tr>
+                    <td class="code-font">{r.sessionId.substring(0, 8)}...</td>
+                    <td>{formatDate(r.createdAt)}</td>
+                    <td>{r.gender || '-'}</td>
+                    <td>
+                      {r.isAnalyzed ? (
+                        <span class="status-pill success"><i class="bi bi-check-circle-fill"></i> Selesai</span>
+                      ) : (
+                        <span class="status-pill warning"><i class="bi bi-clock-fill"></i> Pending</span>
+                      )}
+                    </td>
+                    <td>
+                      <a href={`/admin/analisis/${r.id}`} class="btn-icon" title="Lihat Detail">
+                        <i class="bi bi-eye-fill"></i>
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {allRespondents.length > 50 && <p class="text-center mt-2 text-muted">Menampilkan 50 data terbaru...</p>}
+        </section>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  // Batch Analyze Logic
+  document.getElementById('batch-analyze-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalText = btn.innerHTML;
+    
+    if(!confirm('Proses analisis masal mungkin memakan waktu beberapa detik. Lanjutkan?')) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Memproses...';
+    
+    try {
+      const res = await fetch('/api/admin/analyze-all', { method: 'POST' });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert(`Analisis Selesai! ${data.message}`);
+        window.location.reload();
+      } else {
+        alert('Gagal: ' + data.error);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan jaringan');
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  });
+
+  // Logout
+  // Logout
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin/login';
+    } catch (e) {
+      // Fallback
+      window.location.href = '/admin/login';
+    }
+  });
+  
+  // Init DB
+  document.getElementById('init-db-btn')?.addEventListener('click', async () => {
+    if(confirm('Inisialisasi Database? (Hanya dijalankan jika tabel belum ada)')) {
+      fetch('/api/init-db').then(r => r.json()).then(d => alert(d.message || d.error));
+    }
+  });
+</script>
+
+<style>
+  /* Layout */
+  .admin-wrapper {
+    min-height: 100vh;
+    background-color: #f0f9ff; /* Very light blue bg */
+  }
+  
+  .admin-nav {
+    background: white;
+    padding: 0.75rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .nav-brand {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-logout {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+  }
+  
+  .btn-logout:hover { background: #fca5a5; }
+
+  .dashboard-content {
+    padding: 2rem 0;
+  }
+
+  /* Header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+  }
+  
+  .subtitle { color: var(--color-text-muted); }
+  
+  .header-actions { display: flex; gap: 0.5rem; }
+  
+  /* Stats Cards */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    transition: transform 0.2s;
+  }
+  
+  .stat-card:hover { transform: translateY(-5px); }
+  
+  .stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+  }
+  
+  .bg-blue { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+  .bg-green { background: linear-gradient(135deg, #10b981, #059669); }
+  .bg-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  
+  .stat-data h3 { font-size: 2rem; margin-bottom: 0; line-height: 1; }
+  .stat-data span { font-size: 0.85rem; color: var(--color-text-muted); }
+
+  /* Aggregate Section */
+  .aggregate-section {
+    margin-bottom: 2.5rem;
+  }
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+  }
+  
+  .chart-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(14, 165, 233, 0.1);
+  }
+  
+  .chart-card h3 {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Word List Visualization */
+  .word-list { display: flex; flex-direction: column; gap: 0.8rem; }
+  
+  .word-item {
+    display: grid;
+    grid-template-columns: 30px 100px 1fr 30px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+  
+  .rank { color: var(--color-primary); font-weight: 700; }
+  .word { font-weight: 500; }
+  .count { text-align: right; color: var(--color-text-muted); }
+  
+  .bar-container {
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 4px;
+  }
+  
+  /* Sentiment Box */
+  .sentiment-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .sentiment-item {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+  }
+  
+  .sentiment-item.negative { background: #fef2f2; color: #b91c1c; }
+  .sentiment-item.neutral { background: #f0fdf4; color: #166534; }
+  
+  .sentiment-item .number {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .sentiment-item .label { font-size: 0.8rem; opacity: 0.9; }
+  
+  .mini-stat {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Table */
+  .table-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .table-section h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+  
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th, .data-table td { padding: 1rem; text-align: left; }
+  .data-table th { color: var(--color-text-muted); font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid #f1f5f9; }
+  .data-table td { border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+  
+  .code-font { font-family: monospace; color: var(--color-primary); }
+  
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .status-pill.success { background: #dcfce7; color: #15803d; }
+  .status-pill.warning { background: #fef3c7; color: #b45309; }
+  
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    background: #f8fafc;
+    transition: 0.2s;
+  }
+  
+  .btn-icon:hover { background: var(--color-primary-light); color: var(--color-primary); }
+
+  /* Animations */
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(14, 165, 233, 0); } 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); } }
+  .pulse-animation { animation: pulse 2s infinite; }
+  
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  }
+</style>

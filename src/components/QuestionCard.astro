@@ -1,0 +1,252 @@
+---
+interface Props {
+    number: number;
+    question: string;
+    type: "text" | "textarea" | "radio";
+    options?: string[];
+    hint?: string;
+    required?: boolean;
+}
+
+const {
+    number,
+    question,
+    type,
+    options = [],
+    hint,
+    required = true,
+} = Astro.props;
+const inputName = `question_${number}`;
+---
+
+<div class="question-card">
+    <div class="question-header">
+        <span class="question-number">{number}</span>
+        <h3 class="question-text">{question}</h3>
+    </div>
+
+    <div class="question-body">
+        {
+            type === "text" && (
+                <input
+                    type="text"
+                    name={inputName}
+                    id={inputName}
+                    class="input-field"
+                    required={required}
+                    placeholder="Ketik jawaban Anda di sini..."
+                />
+            )
+        }
+
+        {
+            type === "textarea" && (
+                <textarea
+                    name={inputName}
+                    id={inputName}
+                    class="textarea-field"
+                    required={required}
+                    placeholder="Ceritakan dengan detail..."
+                    rows="6"
+                />
+            )
+        }
+
+        {
+            type === "radio" && options.length > 0 && (
+                <div class="radio-group">
+                    {options.map((option, idx) => (
+                        <label class="radio-option">
+                            <input
+                                type="radio"
+                                name={inputName}
+                                value={option}
+                                required={required}
+                            />
+                            <span class="radio-label">{option}</span>
+                        </label>
+                    ))}
+                </div>
+            )
+        }
+
+        {
+            hint && (
+                <p class="form-hint">
+                    <i class="bi bi-info-circle" /> {hint}
+                </p>
+            )
+        }
+    </div>
+</div>
+
+<style>
+    .question-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--color-border);
+        transition:
+            transform 0.2s,
+            box-shadow 0.2s;
+    }
+
+    .question-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .question-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .question-number {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        background: var(--color-primary);
+        color: white;
+        font-weight: 700;
+        font-size: 1rem;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3);
+    }
+
+    .question-text {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.5;
+        padding-top: 0.25rem;
+        color: var(--color-text);
+    }
+
+    .question-body {
+        padding-left: 3.5rem;
+    }
+
+    /* Input Styles */
+    .input-field,
+    .textarea-field {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        font-family: inherit;
+        font-size: 1rem;
+        color: var(--color-text);
+        background-color: #f8fafc;
+        transition: all 0.2s;
+    }
+
+    .input-field:focus,
+    .textarea-field:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        background-color: white;
+        box-shadow: 0 0 0 4px var(--color-primary-light);
+    }
+
+    .textarea-field {
+        min-height: 150px;
+        resize: vertical;
+        line-height: 1.6;
+    }
+
+    /* Radio Group Styles - Responsive Grid */
+    .radio-group {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    /* Tablet & Desktop: 2 Columns if many options, or auto-fit */
+    @media (min-width: 640px) {
+        .radio-group {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.2s;
+        background-color: white;
+    }
+
+    .radio-option:hover {
+        background-color: var(--color-primary-light);
+        border-color: var(--color-primary);
+    }
+
+    .radio-option input[type="radio"] {
+        accent-color: var(--color-primary);
+        width: 1.25rem;
+        height: 1.25rem;
+        margin: 0;
+    }
+
+    /* Highlight selected option logic handled by :has selector in modern browsers 
+       or just relied on accent-color */
+    .radio-option:has(input:checked) {
+        background-color: var(--color-primary-light);
+        border-color: var(--color-primary);
+        font-weight: 500;
+        box-shadow: 0 0 0 2px var(--color-primary-light);
+    }
+
+    .form-hint {
+        display: flex;
+        align-items: start;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+        background: #f1f5f9;
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+    }
+
+    .form-hint i {
+        color: var(--color-info);
+        margin-top: 0.1rem;
+    }
+
+    /* Mobile Responsiveness Override */
+    @media (max-width: 640px) {
+        .question-card {
+            padding: 1.25rem;
+        }
+
+        .question-header {
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .question-number {
+            width: 2rem;
+            height: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .question-text {
+            font-size: 1rem;
+        }
+
+        .question-body {
+            padding-left: 0; /* Remove indent on mobile for full width */
+        }
+    }
+</style>

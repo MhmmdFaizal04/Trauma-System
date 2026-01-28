@@ -1,0 +1,164 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Layout title="Terima Kasih">
+    <div class="page-wrapper">
+        <Header />
+
+        <main class="main-content">
+            <div class="container">
+                <div class="thank-you-card">
+                    <div class="success-icon">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+
+                    <h1>Terima Kasih!</h1>
+                    <p class="message">
+                        Jawaban kamu telah berhasil dikirim. Terima kasih sudah
+                        meluangkan waktu untuk mengisi kuisioner ini.
+                    </p>
+
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i>
+                        <div>
+                            <strong>Apa selanjutnya?</strong>
+                            <p>
+                                Data yang kamu berikan akan dianalisis oleh tim
+                                kami untuk membantu memahami kondisi emosional
+                                dan psikologis remaja saat ini.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <a href="/" class="btn btn-primary">
+                            <i class="bi bi-house"></i>
+                            Kembali ke Beranda
+                        </a>
+                    </div>
+
+                    <div class="support-note">
+                        <i class="bi bi-heart-fill"></i>
+                        <p>
+                            Jika kamu merasa membutuhkan seseorang untuk
+                            berbicara, jangan ragu untuk menghubungi guru BK
+                            atau orang dewasa yang kamu percaya.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <Footer />
+    </div>
+</Layout>
+
+<style>
+    .page-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .main-content {
+        flex: 1;
+        padding: 4rem 0;
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        display: flex;
+        align-items: center;
+    }
+
+    .thank-you-card {
+        max-width: 560px;
+        margin: 0 auto;
+        background: white;
+        border-radius: var(--radius-xl);
+        padding: 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .success-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--color-secondary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+
+    .success-icon i {
+        font-size: 3rem;
+        color: white;
+    }
+
+    .thank-you-card h1 {
+        color: var(--color-secondary);
+        margin-bottom: 1rem;
+    }
+
+    .message {
+        font-size: 1.125rem;
+        color: var(--color-text-muted);
+        margin-bottom: 2rem;
+    }
+
+    .info-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        text-align: left;
+        background: #eff6ff;
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 2rem;
+    }
+
+    .info-box > i {
+        font-size: 1.5rem;
+        color: var(--color-info);
+        flex-shrink: 0;
+    }
+
+    .info-box strong {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-box p {
+        font-size: 0.875rem;
+        color: var(--color-text-muted);
+        margin: 0;
+    }
+
+    .actions {
+        margin-bottom: 2rem;
+    }
+
+    .support-note {
+        background: #fef2f2;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        text-align: left;
+    }
+
+    .support-note i {
+        color: var(--color-danger);
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .support-note p {
+        font-size: 0.875rem;
+        color: #991b1b;
+        margin: 0;
+    }
+</style>

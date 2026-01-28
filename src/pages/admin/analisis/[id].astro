@@ -1,0 +1,542 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { isAuthenticated, verifyToken, getTokenFromRequest } from '../../../lib/auth';
+import { sql } from '../../../lib/db';
+
+// Check authentication
+if (!isAuthenticated(Astro.request)) {
+  return Astro.redirect('/admin/login');
+}
+
+const token = getTokenFromRequest(Astro.request);
+const user = token ? verifyToken(token) : null;
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/admin/dashboard');
+}
+
+// Fetch respondent data
+let respondent: any = null;
+let allResponses: any[] = [];
+let analysis: any = null;
+
+try {
+  const respondentData = await sql`
+    SELECT id, session_id, age, gender, created_at
+    FROM respondents
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  
+  if (respondentData.length > 0) {
+    respondent = {
+      id: respondentData[0].id,
+      sessionId: respondentData[0].session_id,
+      age: respondentData[0].age,
+      gender: respondentData[0].gender,
+      createdAt: respondentData[0].created_at
+    };
+    
+    const responsesData = await sql`
+      SELECT id, question_number, answer
+      FROM responses
+      WHERE respondent_id = ${id}
+      ORDER BY question_number ASC
+    `;
+    
+    allResponses = responsesData.map((r: any) => ({
+      id: r.id,
+      questionNumber: r.question_number,
+      answer: r.answer
+    }));
+    
+    const analysisData = await sql`
+      SELECT * FROM analysis_results
+      WHERE respondent_id = ${id}
+      LIMIT 1
+    `;
+    
+    if (analysisData.length > 0) {
+      analysis = {
+        wordFrequency: analysisData[0].word_frequency,
+        sentenceAnalysis: analysisData[0].sentence_analysis,
+        pronounAnalysis: analysisData[0].pronoun_analysis,
+        traumaIndicators: analysisData[0].trauma_indicators,
+        summary: analysisData[0].summary
+      };
+    }
+  }
+} catch (error) {
+  console.error('Database error:', error);
+}
+
+if (!respondent) {
+  return Astro.redirect('/admin/dashboard');
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(date));
+}
+
+const questionLabels: { [key: number]: string } = {
+  1: "Usia",
+  2: "Jenis Kelamin",
+  3: "Pengalaman membekas",
+  4: "Perasaan saat menghadapi masalah",
+  5: "Kata-kata yang sering muncul di pikiran",
+  6: "Hari yang paling berat",
+  7: "Aktivitas setelah pulang sekolah",
+  8: "Hal yang ingin diubah",
+  9: "Yang membuat aman dan nyaman",
+  10: "Kekhawatiran",
+  11: "Hubungan dengan orang terdekat",
+  12: "Siapa yang biasanya disalahkan",
+  13: "Frekuensi sedih tanpa alasan",
+  14: "Frekuensi mimpi buruk / sulit tidur",
+  15: "Perasaan tentang masa depan"
+};
+---
+
+<Layout title="Detail Analisis">
+  <div class="admin-wrapper">
+    <!-- Navbar (Same as Dashboard) -->
+    <nav class="admin-nav">
+      <div class="nav-brand">
+        <i class="bi bi-shield-lock-fill"></i> 
+        <span>Panel Admin</span>
+      </div>
+      <div class="user-menu">
+        <span>Halo, {user?.username || 'Admin'}</span>
+        <button id="logout-btn" class="btn-logout" title="Keluar">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </nav>
+    
+    <main class="dashboard-content">
+      <div class="container">
+        <!-- Breadcrumb / Header -->
+        <header class="page-header">
+           <a href="/admin/dashboard" class="back-btn">
+             <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
+           </a>
+           <div class="header-main">
+             <div class="title-group">
+               <h1><i class="bi bi-file-earmark-person-fill text-primary"></i> Detail Responden</h1>
+               <span class="session-badge" title="Session ID">#{respondent.sessionId.substring(0,8)}</span>
+             </div>
+             <p class="subtitle">Disubmit pada {formatDate(respondent.createdAt)}</p>
+           </div>
+        </header>
+
+        <div class="content-grid">
+          <!-- Left Column: Info & Status -->
+          <aside class="left-col">
+            <!-- Info Card -->
+            <div class="card info-card">
+               <div class="card-header-sm">
+                  <h3><i class="bi bi-person-vcard"></i> Informasi Dasar</h3>
+               </div>
+               <div class="info-list">
+                 <div class="info-item">
+                   <span class="label"><i class="bi bi-calendar-event"></i> Tanggal</span>
+                   <span class="value">{formatDate(respondent.createdAt)}</span>
+                 </div>
+                 <div class="info-item">
+                   <span class="label"><i class="bi bi-person"></i> Usia</span>
+                   <span class="value">{respondent.age ? `${respondent.age} Tahun` : '-'}</span>
+                 </div>
+                 <div class="info-item">
+                   <span class="label"><i class="bi bi-gender-ambiguous"></i> Gender</span>
+                   <span class="value">{respondent.gender || '-'}</span>
+                 </div>
+               </div>
+            </div>
+
+            <!-- Status Card -->
+            {analysis ? (
+              <div class="card status-card success">
+                <div class="status-icon">
+                  <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div class="status-content">
+                  <h4>Analisis Selesai</h4>
+                  <p>Data telah diproses oleh sistem.</p>
+                </div>
+              </div>
+            ) : (
+              <div class="card status-card warning">
+                <div class="status-icon">
+                  <i class="bi bi-exclamation-circle-fill"></i>
+                </div>
+                <div class="status-content">
+                  <h4>Belum Dianalisis</h4>
+                  <p>Lakukan analisis untuk melihat hasil.</p>
+                  <button id="analyze-btn" class="btn btn-primary btn-sm btn-block mt-2" data-id={id}>
+                    <i class="bi bi-lightning-charge-fill"></i> Proses Sekarang
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <!-- Summary Card -->
+            {analysis?.summary && (
+              <div class="card summary-card">
+                <div class="card-header-sm">
+                  <h3><i class="bi bi-stars text-warning"></i> Ringkasan AI</h3>
+                </div>
+                <div class="summary-body">
+                  <p>{analysis.summary}</p>
+                  {analysis.traumaIndicators && analysis.traumaIndicators.length > 0 && (
+                    <div class="indicators">
+                      <strong><i class="bi bi-flag-fill text-danger"></i> Terindikasi:</strong>
+                      <ul>
+                        {analysis.traumaIndicators.map((ind: string) => (
+                          <li>{ind}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </aside>
+          
+          <!-- Right Column: Results & Answers -->
+          <div class="right-col">
+            <!-- Analysis Visuals (If available) -->
+            {analysis && (
+              <div class="card analysis-result-card">
+                 <div class="card-header">
+                    <h2><i class="bi bi-bar-chart-line-fill text-primary"></i> Hasil Analisis Linguistik</h2>
+                 </div>
+                 <div class="card-body">
+                   <div class="metrics-row">
+                      <!-- Word Freq -->
+                       <div class="metric-box">
+                         <h4><i class="bi bi-chat-quote-fill text-muted"></i> Kata Negatif Dominan</h4>
+                         <div class="tags">
+                           {analysis.wordFrequency && Object.entries(analysis.wordFrequency).length > 0 ? 
+                              Object.entries(analysis.wordFrequency).slice(0,5).map(([w, c]) => (
+                                <span class="tag">{w} <span class="count">{c}</span></span>
+                              )) : <span class="text-muted empty-text">Tidak ada kata negatif signifikan</span>}
+                         </div>
+                       </div>
+                       <!-- Pronouns -->
+                       <div class="metric-box">
+                          <h4><i class="bi bi-person-bounding-box text-muted"></i> Sudut Pandang</h4>
+                          <div class="pronoun-stats">
+                             <div class="stat-row">
+                               <span>Aku/Saya</span>
+                               <strong>{analysis.pronounAnalysis?.firstPerson || 0}%</strong>
+                             </div>
+                             <div class="progress-mini">
+                               <div class="progress-fill" style={`width:${analysis.pronounAnalysis?.firstPerson || 0}%`}></div>
+                             </div>
+                          </div>
+                       </div>
+                   </div>
+                 </div>
+              </div>
+            )}
+
+             <!-- Q&A List -->
+             <div class="card qa-card">
+                <div class="card-header">
+                   <h2><i class="bi bi-file-text-fill text-primary"></i> Jawaban Lengkap Kuisioner</h2>
+                </div>
+                <div class="qa-list">
+                  {allResponses.map((r, index) => (
+                    <div class="qa-item">
+                       <div class="q-badge">
+                          <span class="q-num">{r.questionNumber}</span>
+                       </div>
+                       <div class="q-content">
+                          <p class="question">{questionLabels[r.questionNumber] || `Pertanyaan ${r.questionNumber}`}</p>
+                          <div class="answer-box">
+                            <p>{r.answer || '-'}</p>
+                          </div>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  // Logout logic
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin/login';
+    } catch (e) {
+      window.location.href = '/admin/login';
+    }
+  });
+
+  // Analyze Logic
+  document.getElementById('analyze-btn')?.addEventListener('click', async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    const id = button.dataset.id;
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-hourglass-split spin"></i> Memproses...';
+    
+    try {
+      const response = await fetch(`/api/admin/analyze/${id}`, { method: 'POST' });
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        alert('Gagal analisis');
+        button.disabled = false;
+        button.innerHTML = originalText;
+      }
+    } catch (error) {
+      alert('Terjadi kesalahan');
+      button.disabled = false;
+      button.innerHTML = originalText;
+    }
+  });
+</script>
+
+<style>
+  /* Layout & Wrapper */
+  .admin-wrapper {
+    min-height: 100vh;
+    background-color: #f0f9ff;
+    padding-bottom: 2rem;
+  }
+  
+  /* Navbar */
+  .admin-nav {
+    background: white;
+    height: 64px;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .nav-brand {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+  
+  .btn-logout {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  
+  .btn-logout:hover { background: #fecaca; }
+
+  /* Content Area */
+  .dashboard-content { padding-top: 2rem; }
+
+  /* Page Header */
+  .page-header { margin-bottom: 1.5rem; }
+  
+  .back-btn { 
+    display: inline-flex; align-items: center; gap: 0.4rem; 
+    color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 1rem;
+    font-weight: 500; transition: color 0.2s;
+  }
+  .back-btn:hover { color: var(--color-primary); }
+  
+  .header-main { margin-bottom: 1rem; }
+  
+  .title-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .header-main h1 { 
+    font-size: 1.5rem; 
+    margin: 0; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    color: #0f172a;
+  }
+  
+  .session-badge { 
+    background: white; 
+    border: 1px solid var(--color-border); 
+    padding: 0.2rem 0.6rem; 
+    border-radius: 6px; 
+    font-family: monospace; 
+    font-size: 0.85rem; 
+    color: var(--color-text-muted);
+    letter-spacing: 0.5px;
+  }
+  
+  .subtitle { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; }
+
+  /* Grid Layout */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .content-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Cards */
+  .card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  
+  .card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  
+  .card-header h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+  
+  .card-header-sm {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f8fafc;
+  }
+  
+  .card-header-sm h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--color-text); }
+
+  .card-body { padding: 1.5rem; }
+
+  /* Info Card */
+  .info-list { padding: 0.5rem 0; }
+  .info-item { 
+    display: flex; justify-content: space-between; padding: 0.75rem 1.25rem; 
+    border-bottom: 1px solid #f8fafc; font-size: 0.9rem;
+  }
+  .info-item:last-child { border-bottom: none; }
+  .info-item .label { color: var(--color-text-muted); display: flex; align-items: center; gap: 0.5rem; }
+  .info-item .value { font-weight: 600; color: var(--color-text); }
+
+  /* Status Cards */
+  .status-card { display: flex; padding: 1.25rem; gap: 1rem; align-items: flex-start; }
+  .status-card.success { background: #f0fdf4; border-color: #bbf7d0; }
+  .status-card.warning { background: #fffbeb; border-color: #fde68a; }
+  
+  .status-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  .status-card.success .status-icon { color: #16a34a; }
+  .status-card.warning .status-icon { color: #d97706; }
+  
+  .status-content h4 { margin: 0 0 0.25rem 0; font-size: 1rem; color: #0f172a; }
+  .status-content p { margin: 0; font-size: 0.85rem; color: #475569; }
+
+  /* Summary Card */
+  .summary-body { padding: 1.25rem; }
+  .summary-body p { margin-top: 0; font-size: 0.95rem; line-height: 1.6; color: #334155; }
+  .indicators { margin-top: 1rem; background: #fff1f2; padding: 0.75rem; border-radius: 8px; border: 1px solid #fecaca; }
+  .indicators strong { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #991b1b; }
+  .indicators ul { margin: 0 0 0 1.25rem; padding: 0; font-size: 0.9rem; color: #b91c1c; }
+
+  /* Analysis Results */
+  .metrics-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 640px) { .metrics-row { grid-template-columns: 1fr; gap: 1rem; } }
+
+  .metric-box h4 { 
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; 
+    color: var(--color-text-muted); margin-bottom: 0.75rem; font-weight: 600;
+  }
+  
+  .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tag { 
+    background: #fee2e2; color: #991b1b; padding: 0.25rem 0.6rem; 
+    border-radius: 6px; font-size: 0.85rem; font-weight: 500; 
+    display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid #fecaca;
+  }
+  .tag .count { background: rgba(0,0,0,0.1); padding: 0 0.3rem; border-radius: 4px; font-size: 0.75rem; }
+  
+  .pronoun-stats { background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #f1f5f9; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .progress-mini { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--color-primary); border-radius: 3px; }
+
+  /* QA List */
+  .qa-card .card-body { padding: 0; }
+  .qa-list { display: flex; flex-direction: column; }
+  
+  .qa-item {
+    display: flex; gap: 1rem; padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s;
+  }
+  .qa-item:last-child { border-bottom: none; }
+  .qa-item:hover { background: #fafafa; }
+  
+  .q-badge { flex-shrink: 0; }
+  .q-num {
+    width: 28px; height: 28px; background: var(--color-primary); color: white;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+  }
+  
+  .q-content { flex: 1; }
+  .question { font-weight: 600; font-size: 0.95rem; color: #1e293b; margin: 0 0 0.5rem 0; line-height: 1.4; }
+  .answer-box { 
+    background: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; 
+    border: 1px solid #f1f5f9; font-size: 0.95rem; color: #334155;
+  }
+  .answer-box p { margin: 0; line-height: 1.6; }
+
+  /* Utilities */
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .text-primary { color: var(--color-primary); }
+  .text-muted { color: var(--color-text-muted); }
+  .text-danger { color: var(--color-danger); }
+  .text-warning { color: var(--color-warning); }
+  .empty-text { font-style: italic; font-size: 0.85rem; }
+</style>

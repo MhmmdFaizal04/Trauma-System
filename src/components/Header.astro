@@ -1,0 +1,76 @@
+---
+
+---
+
+<header class="header">
+    <div class="container header-container">
+        <a href="/" class="logo">
+            <i class="bi bi-heart-pulse-fill"></i>
+            <span>TraumaDeteksi</span>
+        </a>
+
+        <nav class="nav">
+            <a href="/" class="nav-link">Beranda</a>
+            <a href="/kuisioner" class="nav-link">Kuisioner</a>
+            <a href="/admin/login" class="btn btn-sm btn-primary">Admin</a>
+        </nav>
+    </div>
+</header>
+
+<style>
+    .header {
+        height: var(--header-height);
+        background-color: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--color-border);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .header-container {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+
+    .logo i {
+        font-size: 1.5rem;
+    }
+
+    .nav {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .nav-link {
+        color: var(--color-text);
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .nav-link:hover {
+        color: var(--color-primary);
+    }
+
+    @media (max-width: 768px) {
+        .nav {
+            gap: 1rem;
+        }
+
+        .nav-link {
+            display: none;
+        }
+    }
+</style>

@@ -1,0 +1,435 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import QuestionCard from "../components/QuestionCard.astro";
+
+// Daftar pertanyaan kuisioner
+const questions = [
+    // Bagian 1: Data Demografi
+    {
+        number: 1,
+        question: "Berapa usia kamu saat ini?",
+        type: "radio" as const,
+        options: ["12 tahun", "13 tahun", "14 tahun", "15 tahun", "16 tahun"],
+        category: "demografi",
+    },
+    {
+        number: 2,
+        question: "Apa jenis kelamin kamu?",
+        type: "radio" as const,
+        options: ["Laki-laki", "Perempuan"],
+        category: "demografi",
+    },
+
+    // Bagian 2: Pilihan Kata (Diksi)
+    {
+        number: 3,
+        question:
+            "Ceritakan pengalaman yang paling membekas dalam hidupmu. Tulislah dengan bebas dan sejujur mungkin.",
+        type: "textarea" as const,
+        hint: "Tidak ada jawaban benar atau salah. Ceritakan dengan bahasamu sendiri.",
+        category: "diksi",
+    },
+    {
+        number: 4,
+        question:
+            "Ketika menghadapi masalah, perasaan apa yang biasanya kamu rasakan? Jelaskan dengan detail.",
+        type: "textarea" as const,
+        category: "diksi",
+    },
+    {
+        number: 5,
+        question:
+            "Tuliskan kata-kata yang sering muncul di pikiranmu ketika kamu sedang sendiri.",
+        type: "textarea" as const,
+        hint: "Misalnya: tenang, gelisah, senang, takut, dll.",
+        category: "diksi",
+    },
+
+    // Bagian 3: Struktur Narasi
+    {
+        number: 6,
+        question:
+            "Ceritakan tentang hari yang menurutmu paling berat yang pernah kamu alami. Apa yang terjadi dari awal sampai akhir?",
+        type: "textarea" as const,
+        hint: "Ceritakan secara berurutan dengan detail.",
+        category: "struktur",
+    },
+    {
+        number: 7,
+        question:
+            "Bagaimana kamu biasanya menghabiskan waktu setelah pulang sekolah? Ceritakan aktivitasmu.",
+        type: "textarea" as const,
+        category: "struktur",
+    },
+
+    // Bagian 4: Tema
+    {
+        number: 8,
+        question:
+            "Jika kamu bisa mengubah satu hal dalam hidupmu, apa yang akan kamu ubah dan mengapa?",
+        type: "textarea" as const,
+        category: "tema",
+    },
+    {
+        number: 9,
+        question: "Apa yang membuatmu merasa aman dan nyaman? Jelaskan.",
+        type: "textarea" as const,
+        category: "tema",
+    },
+    {
+        number: 10,
+        question:
+            "Apa yang paling sering kamu khawatirkan? Ceritakan tentang kekhawatiranmu.",
+        type: "textarea" as const,
+        category: "tema",
+    },
+
+    // Bagian 5: Sudut Pandang
+    {
+        number: 11,
+        question:
+            "Ceritakan tentang hubunganmu dengan orang-orang terdekat (keluarga atau teman).",
+        type: "textarea" as const,
+        hint: "Fokus pada bagaimana kamu melihat hubungan tersebut.",
+        category: "sudut_pandang",
+    },
+    {
+        number: 12,
+        question:
+            "Ketika terjadi masalah dengan orang lain, siapa yang biasanya kamu salahkan? Dirimu sendiri atau orang lain? Jelaskan.",
+        type: "textarea" as const,
+        category: "sudut_pandang",
+    },
+
+    // Bagian 6: Indikator Emosional
+    {
+        number: 13,
+        question: "Seberapa sering kamu merasa sedih tanpa alasan yang jelas?",
+        type: "radio" as const,
+        options: [
+            "Tidak pernah",
+            "Jarang",
+            "Kadang-kadang",
+            "Sering",
+            "Sangat sering",
+        ],
+        category: "emosional",
+    },
+    {
+        number: 14,
+        question: "Apakah kamu sering mengalami mimpi buruk atau sulit tidur?",
+        type: "radio" as const,
+        options: [
+            "Tidak pernah",
+            "Jarang",
+            "Kadang-kadang",
+            "Sering",
+            "Sangat sering",
+        ],
+        category: "emosional",
+    },
+    {
+        number: 15,
+        question:
+            "Bagaimana perasaanmu tentang masa depan? Jelaskan harapan atau kekhawatiranmu.",
+        type: "textarea" as const,
+        category: "emosional",
+    },
+];
+
+const totalQuestions = questions.length;
+---
+
+<Layout title="Kuisioner">
+    <div class="page-wrapper">
+        <Header />
+
+        <main class="main-content">
+            <div class="container container-md">
+                <div class="intro-section">
+                    <h1>
+                        <i class="bi bi-clipboard2-check"></i> Kuisioner Deteksi Trauma
+                    </h1>
+                    <p class="text-muted">
+                        Jawablah semua pertanyaan di bawah ini dengan jujur.
+                        Tidak ada jawaban benar atau salah. Jawabanmu akan
+                        membantu kami memahami kondisimu dengan lebih baik.
+                    </p>
+
+                    <div class="progress-section">
+                        <div class="progress-info">
+                            <span>Progres Pengisian</span>
+                            <span id="progress-text">0/{totalQuestions}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div
+                                class="progress-bar-fill"
+                                id="progress-fill"
+                                style="width: 0%"
+                            >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <form
+                    id="questionnaire-form"
+                    method="POST"
+                    action="/api/kuisioner"
+                >
+                    <!-- Bagian Demografi -->
+                    <div class="section-header">
+                        <i class="bi bi-person-badge"></i>
+                        <h2>Data Diri</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "demografi")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <!-- Bagian Pilihan Kata -->
+                    <div class="section-header">
+                        <i class="bi bi-chat-quote"></i>
+                        <h2>Pilihan Kata</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "diksi")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <!-- Bagian Struktur Narasi -->
+                    <div class="section-header">
+                        <i class="bi bi-text-paragraph"></i>
+                        <h2>Struktur Cerita</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "struktur")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <!-- Bagian Tema -->
+                    <div class="section-header">
+                        <i class="bi bi-journal-text"></i>
+                        <h2>Tema dan Perasaan</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "tema")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <!-- Bagian Sudut Pandang -->
+                    <div class="section-header">
+                        <i class="bi bi-person-lines-fill"></i>
+                        <h2>Sudut Pandang</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "sudut_pandang")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <!-- Bagian Indikator Emosional -->
+                    <div class="section-header">
+                        <i class="bi bi-emoji-smile"></i>
+                        <h2>Indikator Emosional</h2>
+                    </div>
+                    {
+                        questions
+                            .filter((q) => q.category === "emosional")
+                            .map((q) => <QuestionCard {...q} />)
+                    }
+
+                    <div class="submit-section">
+                        <div class="alert alert-info">
+                            <i class="bi bi-shield-check"></i>
+                            <span
+                                >Data yang kamu isi akan dijaga kerahasiaannya
+                                dan hanya digunakan untuk keperluan analisis.</span
+                            >
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary btn-lg"
+                            id="submit-btn"
+                        >
+                            <i class="bi bi-send"></i>
+                            Kirim Jawaban
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+
+        <Footer />
+    </div>
+</Layout>
+
+<script define:vars={{ totalQuestions }}>
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("questionnaire-form");
+        const progressFill = document.getElementById("progress-fill");
+        const progressText = document.getElementById("progress-text");
+
+        function updateProgress() {
+            const inputs = form.querySelectorAll("input, textarea");
+            let answered = 0;
+
+            const questionNames = new Set();
+            inputs.forEach((input) => {
+                if (input.name) questionNames.add(input.name);
+            });
+
+            questionNames.forEach((name) => {
+                const elements = form.querySelectorAll(`[name="${name}"]`);
+                let isAnswered = false;
+
+                elements.forEach((el) => {
+                    if (el.type === "radio" || el.type === "checkbox") {
+                        if (el.checked) isAnswered = true;
+                    } else if (el.value.trim() !== "") {
+                        isAnswered = true;
+                    }
+                });
+
+                if (isAnswered) answered++;
+            });
+
+            const percentage = (answered / totalQuestions) * 100;
+            progressFill.style.width = percentage + "%";
+            progressText.textContent = `${answered}/${totalQuestions}`;
+        }
+
+        form.addEventListener("input", updateProgress);
+        form.addEventListener("change", updateProgress);
+
+        // Form submission
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById("submit-btn");
+            submitBtn.disabled = true;
+            submitBtn.innerHTML =
+                '<i class="bi bi-hourglass-split"></i> Mengirim...';
+
+            const formData = new FormData(form);
+            const data = {};
+
+            for (const [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            try {
+                const response = await fetch("/api/kuisioner", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (response.ok) {
+                    window.location.href = "/terima-kasih";
+                } else {
+                    const result = await response.json();
+                    alert(
+                        "Gagal mengirim: " +
+                            (result.error || "Terjadi kesalahan"),
+                    );
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML =
+                        '<i class="bi bi-send"></i> Kirim Jawaban';
+                }
+            } catch (error) {
+                alert(
+                    "Terjadi kesalahan saat mengirim data. Silakan coba lagi.",
+                );
+                submitBtn.disabled = false;
+                submitBtn.innerHTML =
+                    '<i class="bi bi-send"></i> Kirim Jawaban';
+            }
+        });
+    });
+</script>
+
+<style>
+    .page-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .main-content {
+        flex: 1;
+        padding: 2rem 0;
+        background: var(--color-bg);
+    }
+
+    .intro-section {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .intro-section h1 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .intro-section h1 i {
+        color: var(--color-primary);
+    }
+
+    .progress-section {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        margin-top: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 0;
+        margin: 1.5rem 0 1rem;
+        border-bottom: 2px solid var(--color-primary);
+    }
+
+    .section-header i {
+        font-size: 1.5rem;
+        color: var(--color-primary);
+    }
+
+    .section-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .submit-section {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .submit-section .alert {
+        text-align: left;
+        margin-bottom: 1.5rem;
+    }
+</style>

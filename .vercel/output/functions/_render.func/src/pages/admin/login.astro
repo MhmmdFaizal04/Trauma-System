@@ -1,0 +1,324 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { isAuthenticated } from "../../lib/auth";
+
+// Redirect if already logged in
+if (isAuthenticated(Astro.request)) {
+    return Astro.redirect("/admin/dashboard");
+}
+---
+
+<Layout title="Login Admin">
+    <div class="login-page">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="brand-logo">
+                        <i class="bi bi-heart-pulse-fill"></i>
+                        <span>TraumaDeteksi</span>
+                    </div>
+                    <h1>Selamat Datang</h1>
+                    <p>Silakan masuk untuk mengakses dashboard admin</p>
+                </div>
+
+                <form id="login-form">
+                    <div
+                        id="error-message"
+                        class="alert alert-error"
+                        style="display: none;"
+                    >
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span id="error-text"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username" class="form-label">Username</label
+                        >
+                        <div class="input-wrapper">
+                            <i class="bi bi-person input-icon"></i>
+                            <input
+                                type="text"
+                                id="username"
+                                name="username"
+                                class="form-input"
+                                placeholder="Masukkan username"
+                                required
+                                autocomplete="username"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password" class="form-label">Password</label
+                        >
+                        <div class="input-wrapper">
+                            <i class="bi bi-lock input-icon"></i>
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                class="form-input"
+                                placeholder="Masukkan password"
+                                required
+                                autocomplete="current-password"
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-block"
+                        id="login-btn"
+                    >
+                        Masuk Dashboard
+                    </button>
+                </form>
+
+                <div class="login-footer">
+                    <a href="/" class="back-link">
+                        <i class="bi bi-arrow-left"></i> Kembali ke Beranda
+                    </a>
+                </div>
+            </div>
+
+            <p class="copyright">
+                &copy; {new Date().getFullYear()} TraumaDeteksi System
+            </p>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    document
+        .getElementById("login-form")
+        ?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const loginBtn = document.getElementById(
+                "login-btn",
+            ) as HTMLButtonElement;
+            const errorMessage = document.getElementById("error-message");
+            const errorText = document.getElementById("error-text");
+            const usernameInput = document.getElementById(
+                "username",
+            ) as HTMLInputElement;
+            const passwordInput = document.getElementById(
+                "password",
+            ) as HTMLInputElement;
+
+            if (
+                !loginBtn ||
+                !errorMessage ||
+                !errorText ||
+                !usernameInput ||
+                !passwordInput
+            )
+                return;
+
+            const originalBtnText = loginBtn.innerHTML;
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner"></span> Memproses...';
+            errorMessage.style.display = "none";
+
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            try {
+                const response = await fetch("/api/admin/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    window.location.href = "/admin/dashboard";
+                } else {
+                    errorText.textContent = result.error || "Login gagal";
+                    errorMessage.style.display = "flex";
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = originalBtnText;
+                }
+            } catch (error) {
+                errorText.textContent = "Terjadi kesalahan koneksi";
+                errorMessage.style.display = "flex";
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = originalBtnText;
+            }
+        });
+</script>
+
+<style>
+    .login-page {
+        min-height: 100vh;
+        background-color: #f0f9ff; /* Light Sky Blue */
+        background-image: radial-gradient(#e0f2fe 1px, transparent 1px);
+        background-size: 24px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .login-card {
+        width: 100%;
+        background: white;
+        border-radius: 16px;
+        padding: 2.5rem;
+        box-shadow:
+            0 10px 25px -5px rgba(14, 165, 233, 0.1),
+            0 8px 10px -6px rgba(14, 165, 233, 0.1);
+        border: 1px solid #e0f2fe;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .brand-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: var(--color-primary);
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .brand-logo i {
+        font-size: 1.5rem;
+    }
+
+    .login-header h1 {
+        font-size: 1.5rem;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .login-header p {
+        color: var(--color-text-muted);
+        font-size: 0.9rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--color-text-light);
+        font-size: 1.1rem;
+        pointer-events: none;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.875rem 1rem 0.875rem 2.75rem; /* Left padding for icon */
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        font-size: 1rem;
+        background-color: #f8fafc;
+        transition: all 0.2s;
+        color: #0f172a;
+    }
+
+    .form-input:focus {
+        outline: none;
+        background-color: white;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 4px var(--color-primary-light);
+    }
+
+    .btn-block {
+        width: 100%;
+        justify-content: center;
+        padding: 0.875rem;
+        margin-top: 1rem;
+        font-size: 1rem;
+    }
+
+    .alert-error {
+        background-color: #fef2f2;
+        color: #b91c1c;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #fecaca;
+    }
+
+    .login-footer {
+        margin-top: 2rem;
+        text-align: center;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .back-link {
+        color: var(--color-text-muted);
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: color 0.2s;
+    }
+
+    .back-link:hover {
+        color: var(--color-primary);
+    }
+
+    .copyright {
+        font-size: 0.8rem;
+        color: var(--color-text-light);
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
