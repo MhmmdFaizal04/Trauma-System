@@ -1,12 +1,24 @@
 import { neon } from '@neondatabase/serverless';
 
-const dbUrl = import.meta.env.DATABASE_URL;
+const getDbUrl = () => {
+    const url = import.meta.env.DATABASE_URL;
+    if (!url || url === 'undefined') {
+        console.warn("DATABASE_URL is not defined");
+        return undefined;
+    }
+    return url;
+};
 
-if (!dbUrl) {
-    console.error('CRITICAL ERROR: DATABASE_URL is not defined in environment variables.');
-    throw new Error('DATABASE_URL is not defined');
+const dbUrl = getDbUrl();
+let sql;
+
+if (dbUrl) {
+    sql = neon(dbUrl);
+} else {
+    // Safe fallback that throws only when called
+    sql = (strings, ...values) => {
+        throw new Error("Database not configured: DATABASE_URL is missing");
+    };
 }
-
-const sql = neon(dbUrl);
 
 export { sql };
